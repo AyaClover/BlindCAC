@@ -1,0 +1,136 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{cvpr}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage[shortlabels]{enumitem}
+\usepackage[pagebackref,breaklinks,colorlinks]{hyperref}
+\usepackage[capitalize]{cleveref}
+
+\crefname{section}{Sec.}{Secs.}
+\Crefname{section}{Section}{Sections}
+\Crefname{table}{Table}{Tables}
+\crefname{table}{Tab.}{Tabs.}
+
+\def\cvprPaperID{*****}
+\def\confName{CVPR}
+\def\confYear{2026}
+
+\begin{document}
+
+\title{NTIRE 2026 Blind Computational Aberration Correction Challenge Factsheet\\Team: zjgcxxz}
+
+\author{
+Yang Jingya\\
+Zhejiang University\\
+\texttt{aya\_yang@qq.com}
+\and
+Zhou Zixuan\\
+Zhejiang University
+}
+\maketitle
+
+\section{Introduction}
+This document describes the contribution of the team \textbf{zjgcxxz} to the NTIRE 2026 Blind Computational Aberration Correction Challenge. Our solution is based on the provided baseline repository and incorporates a PSF-guided SwinUnet architecture with a codebook mechanism to enhance aberration correction performance.
+
+\section{Email final submission guide}
+\textbf{To:} lei.sun@insait.ai, qijiang@zju.edu.cn, xiaolongqian@zju.edu.cn, timofte.radu@gmail.com \\
+\textbf{Title:} NTIRE 2026 Blind Computational Aberration Correction - zjgcxxz - \textbf{[06]} \\
+\textbf{Body:}
+\begin{enumerate}[a)]
+    \item Team name: zjgcxxz
+    \item Team leader's name and email: \textbf{Yang Jingya, aya\_yang@qq.com}
+    \item Rest of the team members: \textbf{Zhou Zixuan}
+    \item User names on NTIRE 2026 CodaBench: \textbf{aya\_yang, rebecca}
+    \item Code \& model download command: 
+    \begin{verbatim}
+    git clone https://github.com/ID-Hondomachi/BlindCAC.git
+    \end{verbatim}
+    \item Result download command: 
+    \begin{verbatim}
+    BaiduDisk: https://pan.baidu.com/s/1FkDWuE4C7E0mkWkHRMGfMQ
+    key:3xpi
+    \end{verbatim}
+\end{enumerate}
+The compiled PDF factsheet and its source (.tex) files are attached.
+
+\section{Code Submission}
+Our code submission strictly follows the structure of the official \href{https://github.com/zju-jiangqi/BlindCAC}{BlindCAC repository}. The implementation details are as follows:
+\begin{enumerate}
+    \item \textbf{Model Definition}: The network architecture is defined in \texttt{basicsr/archs/}. Our architecture file is named \texttt{SwinUnet\_psfprediction\_arch.py} (type: \texttt{SwinUnet\_psfprediction\_cacstage}).
+    \item \textbf{Training Pipeline}: Data processing and model logic are implemented in \texttt{basicsr/models/} as \texttt{PSFprediction\_guided\_CACModel} in \texttt{psfconstraint\_model.py}.
+    \item \textbf{Dataset Handling}: Custom dataset \texttt{PairedImageDataset\_psfabd\_readcsv} is used for training; its implementation can be found in \texttt{paired\_image\_dataset.py}.
+    \item \textbf{Configuration}: The training configuration file is \texttt{options/train/train\_PSFguided\_SwinUnet\_gtpsfmap.yml}.
+    \item \textbf{Pretrained Models}: Trained model checkpoints are stored in the \texttt{modelzoo} folder, using BaiduDisk for sharing due to file size constraints.
+\end{enumerate}
+All submitted code and models are available via the Git repository provided in the email.
+
+\section{Factsheet Information}
+
+\subsection{Team details}
+\begin{itemize}
+    \item Team name: zjgcxxz
+    \item Team leader name: \textbf{Yang Jingya}
+    \item Team leader address, phone number, and email: \textbf{aya\_yang@qq.com}
+    \item Rest of the team members: \textbf{Zhou Zixuan}
+    \item Affiliation: \textbf{Zhejiang University}
+    \item User names on CodaBench: \textbf{aya\_yang}
+    \item Best scoring entries during development/validation: \textbf{development: PSNR 25.63}
+    \item Link to the codes/executables: \url{https://github.com/ID-Hondomachi/BlindCAC}
+\end{itemize}
+
+\subsection{Method details}
+\begin{itemize}
+    \item \textbf{General method description}: Our approach addresses blind computational aberration correction by learning to restore sharp images directly from aberrated inputs, without requiring explicit PSF calibration. Inspired by recent advances in universal aberration correction, we use a network from https://github.com/zju-jiangqi/BlindCAC that jointly predicts the latent sharp image and an implicit representation of the spatially-varying PSF. This enables the model to generalize to unseen optical systems by capturing the underlying degradation patterns from diverse training data.
+    \item \textbf{Handling spatially- and spectrally-varying aberrations}: To cope with the variation of aberrations across spatial locations and color channels, our network incorporates . The PSF prediction branch outputs a per-pixel or per-patch representation that guides the restoration process, allowing the model to adapt to local degradation characteristics.
+    \item \textbf{Blind inference capability}: During inference, the model operates on images from previously unseen optical systems without any knowledge of their PSF. The auxiliary PSF-related supervision used during training, enables the network to learn a robust latent space that disentangles content from aberrations, leading to improved generalization.
+    \item \textbf{Network Architecture}: The generator (type: \texttt{SwinUnet\_psfprediction\_cacstage}) uses Group Normalization and SiLU activation, with input resolution 256×256. It includes an LQ stage flag and a codebook mechanism (codebook params: [32, 1024, 512]) to facilitate representation learning of degradation patterns. The discriminator is a \texttt{UNetDiscriminatorSN}. A diagram of the architecture is provided in Figure~\ref{fig:pipeline}.
+    \item \textbf{Training Strategy}:
+        \begin{itemize}
+            \item \textbf{Optimizer}: Adam for both generator and discriminator. Generator LR: 1e-4, discriminator LR: 4e-4, betas: (0.9, 0.99), weight decay: 0.
+            \item \textbf{Learning rate schedule}: Cosine annealing with warm restarts (TrueCosineAnnealingLR), T\_max = 200,000 iterations, eta\_min = 1e-6.
+            \item \textbf{Total iterations}: 400,000.
+            \item \textbf{Batch size}: 1 per GPU × 1 GPUs = 1.
+            \item \textbf{Patch size}: 256×256.
+            \item \textbf{Loss functions}:
+                \begin{itemize}
+                    \item Pixel loss: L1Loss (weight 1.0) applied to both reconstructed image and predicted PSF map.
+                    \item Perceptual loss: LPIPSLoss (weight 1.0) to enhance perceptual quality.
+                    \item GAN loss: Hinge loss (weight 0.0, effectively disabled in this configuration).
+                \end{itemize}
+            \item \textbf{Training data}: We use the official NTIRE 2026 training dataset, which includes diverse aberration patterns from multiple optical systems. The custom dataset \texttt{PairedImageDataset\_psfabd\_readcsv} loads paired aberrated/clean images along with auxiliary PSF maps during training. Data augmentation includes random flips and rotations to improve generalization.
+        \end{itemize}
+    Detailed quantitative and qualitative results, including comparisons to the baseline and other methods, are presented in Table~\ref{tab:results} and Figure~\ref{fig:qualitative}.
+\end{itemize}
+
+\subsection{Other details}
+\begin{itemize}
+    \item \textbf{External methods/models used}: None beyond the provided codebase.
+    \item \textbf{Additional data used}: We used the provided AODLibpro and MixLib datasets; no external data was added.
+    \item \textbf{Planned submission of a paper to the NTIRE 2026 workshop}:  No.
+\end{itemize}
+
+
+{\small
+\bibliographystyle{ieeenat_fullname}
+\bibliography{egbib}
+@article{jiang2024omnilens,
+  title={OmniLens: Towards universal lens aberration correction via lenslib-to-specific domain adaptation},
+  author={Jiang, Qi and Gao, Yao and Gao, Shaohua and Yi, Zhonghua and Qian, Xiaolong and Shi, Hao and Yang, Kailun and Sun, Lei and Wang, Kaiwei},
+  journal={arXiv preprint arXiv:2409.05809},
+  volume={2},
+  number={3},
+  pages={4},
+  year={2024}
+}
+
+@article{jiang2025omnilens++,
+  title={OmniLens++: Blind Lens Aberration Correction via Large LensLib Pre-Training and Latent PSF Representation},
+  author={Jiang, Qi and Qian, Xiaolong and Gao, Yao and Sun, Lei and Yang, Kailun and Yi, Zhonghua and Li, Wenyong and Yang, Ming-Hsuan and Van Gool, Luc and Wang, Kaiwei},
+  journal={arXiv preprint arXiv:2511.17126},
+  year={2025}
+}}
+
+\end{document}
